@@ -3,8 +3,9 @@
 > FILE NAME IN REPO: `CLAUDE.md` (repo root) — Save this EXACT file as `CLAUDE.md` first, before writing any other file.
 > DO NOT create v2/v3/v4 masters. DO NOT split this file. DO NOT change Locked Decisions 1-22.
 > This ONE file = Repo Bootstrap Instruction + Master Context Prompt v5 FINAL (Refined + Optimized) + Implementation Notes v3 + Patches v3.1 + v3.2 + v3.3 + v3.4 (all consolidated).
-> Precedence inside this file: Section 16 Locked Decisions (v5) > Implementation Notes (v3.4 > v3.3 > v3.2 > v3.1 > v3). If Implementation Notes conflicts with Locked Decisions, Locked Decisions win. Patches are clarifications only, NOT new business decisions. PartnerStoreSetup Section 3B is STILL PENDING approval — do NOT implement until user approves.
-> Domain spelling: `ekota.store` — NEVER autocorrect to ekota.store.
+> PRECEDENCE (ONE rule, used everywhere): (1) Section 16 Locked Decisions 1-22 > (2) docs/DECISIONS.md (user-approved additions only) > (3) rest of Part 1B > (4) Part 2 Implementation Notes (clarifications) > (5) Part 1A bootstrap. If DECISIONS.md contradicts Locked Decisions 1-22 → STOP, ask ONE precise question. Patches are clarifications only, NOT new business decisions. PartnerStoreSetup Section 3B is STILL PENDING approval — do NOT implement until user approves. Part 4 (Netlify deployment) is infrastructure-only and user-directed; it changes NO Locked Decision.
+> THIS IS ONE FILE: Part 2 (Implementation Notes) and Part 4 (Netlify) are INSIDE this file. There is NO separate IMPLEMENTATION_NOTES file.
+> Domain: `ekota.store` (Decision 1). Hosting: Netlify (see Part 4).
 
 ---
 
@@ -25,11 +26,11 @@
 ### Step 0.2 — Context Retention Protocol (NEVER LOSE CONTEXT)
 At the START of EVERY phase, EVERY session, EVERY new chat, you MUST:
 ```
-1. Read CLAUDE.md (this file) — FULL, not summary.
+1. Read CLAUDE.md (this file) — FULL, not summary. It includes Part 2 (Implementation Notes) and Part 4 (Netlify); they are INSIDE this file.
 2. Read docs/DECISIONS.md
 3. Read docs/PHASE_STATE.md
 4. Restate in 5 lines: (a) What phase? (b) What is in scope? (c) What is OUT of scope? (d) What files to create/modify? (e) What acceptance must pass?
-5. If CLAUDE.md and DECISIONS.md conflict → DECISIONS.md wins, FLAG the conflict, STOP and ask ONE precise question.
+5. Apply the PRECEDENCE rule at the top of this file. If DECISIONS.md contradicts Locked Decisions 1-22 → FLAG it, STOP, ask ONE precise question.
 6. If requirement conflicts with Locked Decision 1-22 → STOP, ask ONE precise question. Do NOT guess. Do NOT silently change.
 7. NEVER re-derive pricing / discount / commission from memory. Always read from PricingConfig / DECISIONS.md / Section 4 + Section 16 in this file.
 ```
@@ -103,14 +104,50 @@ First: read CLAUDE.md + DECISIONS.md + PHASE_STATE.md, restate scope in 5 lines,
 After: output file tree, how to run/test, acceptance checklist ticked, known gaps, 20-line PHASE_STATE update, and Self-Test Checklist (Part 0.4) with all boxes ticked.
 ```
 
+### Step 0.6 — Sub-Step Checkpoints (SURVIVE SESSION / CONTEXT LIMITS)
+Big phases are executed as sub-steps. After EVERY sub-step: run its tests → `git commit` (`feat(phase-N.x): ...`) → append a 5-line checkpoint to PHASE_STATE under "IN PROGRESS" (done / next sub-step / files touched / open issue / tests run).
+
+| Phase | Sub-steps |
+|---|---|
+| 1 | 1.1 repo+tooling+netlify.toml → 1.2 schema+PostGIS+geo.ts+guard → 1.3 seed+home shell |
+| 2 | 2.1 OTP send/verify+hash+rate limit → 2.2 sessions+Google/email → 2.3 policy.ts+onboarding |
+| 3 | 3.1 KYC provider abstraction+upload → 3.2 state machine → 3.3 admin queue+audit |
+| 4 | 4.1 Store CRUD+slug+scope → 4.2 Category+Listing bilingual → 4.3 media+delivery+`ensure-postgis --phase=4` |
+| 5 | 5.1 pricing/promo/checkout → 5.2 webhook handler+idempotency → 5.3 lifecycle+grace+cron+retry |
+| 6 | 6.1 geo search+ranking → 6.2 home/results UI → 6.3 store/provider pages+SEO |
+| 7 | 7.1 WhatsApp links+ContactEvent → 7.2 QR+poster/card PDF → 7.3 analytics |
+| 8 | 8.1 Partner token+managed stores → 8.2 Promoter codes+commission ledger → 8.3 payout+encryption+dashboards |
+| 9 | 9.1 Provider profile → 9.2 matching+hire → 9.3 reviews+medical approval+`ensure-postgis --phase=9` |
+| 10 | 10.1 admin+moderation → 10.2 hardening+PWA/TWA → 10.3 Netlify production deploy+legal sign-off |
+
+Rules:
+- Context getting long, or ~25 file changes since last checkpoint → STOP, checkpoint now.
+- NEW SESSION RECOVERY: read this file → `docs/PHASE_STATE.md` → `git log --oneline -15` → continue from the last checkpoint. Do NOT redo finished sub-steps. Do NOT restart the phase.
+- Phase DONE (all Acceptance + Self-Test pass) → `git tag phase-N-done`.
+- One phase per session is the recommended rhythm. Never start Phase N+1 in the same breath as closing Phase N unless the user says so.
+
+### Step 0.7 — Human-Required Inputs (AGENT CANNOT INVENT THESE)
+If a phase needs one of these and it is missing: build against the interface/mock, write `BLOCKED-ON-HUMAN: <item>` in PHASE_STATE, continue with unblocked work, NEVER fabricate keys or credentials.
+
+| Needed by | Item (user provides) |
+|---|---|
+| Phase 1 | Supabase project (enable `postgis` extension; pooled `DATABASE_URL` + direct `DIRECT_URL`); Netlify account + site connected to the repo |
+| Phase 1 | DNS for `ekota.store` pointed to Netlify (can wait until Phase 10) |
+| Phase 2 | WhatsApp Cloud API + OTP template approved by Meta (1-3 days — start early); SMS fallback provider; Upstash Redis; Google OAuth client |
+| Phase 3/4 | S3/R2 buckets (private KYC + public media); `KYC_ENCRYPTION_KEY` |
+| Phase 5 | Lemon Squeezy store, 4 variants (LOCAL/NATIONAL/INTERNATIONAL/PARTNER), webhook secret; `CRON_SECRET` |
+| Phase 6 | Google Maps browser + server keys |
+| Phase 8 | `PAYOUT_ENCRYPTION_KEY` + written key-rotation/backup policy |
+| Phase 10 | Sentry DSN; lawyer sign-off on the 4 legal blockers (Section 11) |
+
+Generate secrets with `openssl rand -base64 32`. Secrets go only in `.env.local` (dev) and Netlify env vars (prod) — never in git.
+
 ---
-
-
 
 ## 📦 PART 1A — REPO BOOTSTRAP (How This File Works As Code)
 
 # ekota.store — REPO BOOTSTRAP (Phase 1 Start)
-> Purpose: Make CLAUDE.md + docs/IMPLEMENTATION_NOTES.md work as CODE, not just docs.
+> Purpose: Make CLAUDE.md work as CODE, not just docs.
 > AI (Claude / Cursor / any AI) reads these files first in every phase. If these files are wrong, code will be wrong.
 > Do NOT keep v2/v3/v4 masters. Keep ONLY the files below.
 
@@ -120,14 +157,15 @@ After: output file tree, how to run/test, acceptance checklist ticked, known gap
 ekota.store/
 ├── CLAUDE.md                                  // v5 FINAL CONSOLIDATED - MASTER, highest authority
 ├── docs/
-│   ├── IMPLEMENTATION_NOTES.md                // v3 + v3.1 + v3.2 + v3.3 + v3.4 CONSOLIDATED
 │   ├── DECISIONS.md                           // empty at start, user adds only after approval
 │   └── PHASE_STATE.md                         // empty at start, AI appends after each phase
 ├── .env.example                               // from CLAUDE.md Section 13
+├── netlify.toml                               // Part 4.2
+├── netlify/functions/                         // scheduled cron triggers, Phase 5 (Part 4.4)
 ├── package.json                               // Next.js 14.2.5 pinned
 ├── prisma/
 │   ├── schema.prisma                          // Phase 1 only: see CLAUDE.md Section 7 Phase 1 list
-│   └── seed.ts                                // phase-aware, see IMPLEMENTATION_NOTES Section 6A
+│   └── seed.ts                                // phase-aware, see Part 2 Section 6 (Seed Safety)
 ├── scripts/db/
 │   ├── check-postgis-prerequisite.ts          // Step 1
 │   └── ensure-postgis.ts                      // Step 3, --phase=1/4/9
@@ -145,9 +183,7 @@ mkdir ekota.store && cd ekota.store
 git init
 git branch -M main
 
-# 2. Create files (copy content from the 2 files delivered in this chat)
-# - CLAUDE.md -> copy from ekota.store-CLAUDE-v5-FINAL-CONSOLIDATED.md
-# - docs/IMPLEMENTATION_NOTES.md -> copy from ekota.store-IMPLEMENTATION_NOTES-FINAL-CONSOLIDATED.md
+# 2. Save the single master file as CLAUDE.md in repo root (Part 2 Implementation Notes + Part 4 Netlify are inside it)
 mkdir -p docs scripts/db prisma app messages lib tests
 touch docs/DECISIONS.md docs/PHASE_STATE.md
 
@@ -180,12 +216,11 @@ AI must follow this protocol at start of EVERY phase (copy this into Cursor / Cl
 
 ```
 Read in order:
-1. CLAUDE.md (v5 FINAL CONSOLIDATED)
-2. docs/IMPLEMENTATION_NOTES.md (v3 + patches consolidated)
-3. docs/DECISIONS.md
-4. docs/PHASE_STATE.md
+1. CLAUDE.md (single master file, includes Part 2 + Part 4)
+2. docs/DECISIONS.md
+3. docs/PHASE_STATE.md
 
-Precedence: CLAUDE.md v5 > IMPLEMENTATION_NOTES > DECISIONS.md (if DECISIONS.md conflicts with CLAUDE.md, flag it, do NOT silently override).
+Precedence: see the PRECEDENCE rule at the top of CLAUDE.md.
 If requirement is ambiguous or conflicts with Locked Decision 1-22, STOP and ask ONE precise question.
 Execute ONLY Phase N. Do NOT build Phase N+1 code.
 After phase: output (a) file tree, (b) how to run/test, (c) acceptance checklist, (d) known gaps, (e) 20-line PHASE_STATE update.
@@ -213,7 +248,7 @@ After phase: output (a) file tree, (b) how to run/test, (c) acceptance checklist
 ## 5. FILE HYGIENE (NON-NEGOTIABLE)
 
 - Delete v2/v3/v4 masters. Keep ONLY CLAUDE.md v5 FINAL CONSOLIDATED.
-- Delete old IMPLEMENTATION_NOTES v1/v2/v3 separate files. Keep ONLY docs/IMPLEMENTATION_NOTES.md consolidated.
+- There is NO separate IMPLEMENTATION_NOTES file. If one exists, delete it — Part 2 of CLAUDE.md is the only copy.
 - Never add a decision to docs/DECISIONS.md without user approval.
 - PartnerStoreSetup Section 3B (ACTIVE|EXPIRED) is STILL pending approval. Do NOT implement it until user says YES.
 - If AI proposes a new architecture / business rule, STOP. That is the biggest risk now, not business model.
@@ -221,9 +256,8 @@ After phase: output (a) file tree, (b) how to run/test, (c) acceptance checklist
 ## 6. START PHASE 1 PROMPT (copy-paste to AI)
 
 ```
-Execute Phase 1 per CLAUDE.md v5 FINAL CONSOLIDATED + docs/IMPLEMENTATION_NOTES.md
-+ docs/DECISIONS.md + docs/PHASE_STATE.md.
-Precedence: CLAUDE.md > IMPLEMENTATION_NOTES.
+Execute Phase 1 per CLAUDE.md (single master file) + docs/DECISIONS.md + docs/PHASE_STATE.md.
+Precedence: see top of CLAUDE.md.
 Build ONLY Phase 1 (1.1 -> 1.2 -> 1.3). Do NOT build Phase 2+ code.
 First: restate scope in 5 lines, list files to create/modify, then build.
 ```
@@ -237,11 +271,11 @@ END BOOTSTRAP
 
 # MASTER CONTEXT PROMPT — ekota.store v5 FINAL CONSOLIDATED (Refined + Optimized)
 > HOW TO USE: Save as `CLAUDE.md` in repo root. Delete v2/v3/v4 files, keep ONLY this v5 as master.
-> Companion: `docs/IMPLEMENTATION_NOTES.md` (v3 + v3.1 + v3.2 + v3.3 + v3.4 consolidated, clarifications only).
+> Implementation Notes = Part 2 of this same file (clarifications only). Netlify deployment = Part 4.
 > Create 2 more files: `docs/DECISIONS.md` and `docs/PHASE_STATE.md` (empty at start, AI updates PHASE_STATE every phase, DECISIONS only with user approval).
 > Build ONE phase at a time. Say: "Execute Phase N". Never build everything in one reply.
-> At start of every phase: read `CLAUDE.md` + `docs/IMPLEMENTATION_NOTES.md` + `docs/DECISIONS.md` + `docs/PHASE_STATE.md` first, then restate scope in 5 lines, then list files to create/modify.
-> PRECEDENCE: `CLAUDE.md v5 > IMPLEMENTATION_NOTES (v3.4 > v3.3 > v3.2 > v3.1 > v3) > DECISIONS.md`. If IMPLEMENTATION_NOTES conflicts with CLAUDE.md, CLAUDE.md wins, flag it. IMPLEMENTATION_NOTES contains NO new Locked Decisions. PartnerStoreSetup 3B is PENDING approval, do NOT implement until user approves.
+> At start of every phase: read `CLAUDE.md` + `docs/DECISIONS.md` + `docs/PHASE_STATE.md` first, then restate scope in 5 lines, then list files to create/modify.
+> PRECEDENCE: see the single rule at the top of this file. PartnerStoreSetup 3B is PENDING approval, do NOT implement until user approves.
 > This v5 is FINAL. All ambiguities from v4 review are locked in Section 16, Decisions 18-22. Patches v3.1-v3.4 are already integrated below as clarifications, marked [PATCH].
 
 ---
@@ -263,7 +297,7 @@ You are Principal Full-Stack Architect + Senior Engineer. Build ekota.store exac
 11. NEW DECISION RULE: If you need a new decision for `docs/DECISIONS.md`, STOP and ask first. Never append on your own. Propose in phase report, only user adds it.
 12. Never modify previous phase files unless current phase explicitly requires it. Never refactor unrelated code.
 
-CONTEXT RETENTION: `docs/DECISIONS.md` = decisions. If prompt and DECISIONS.md conflict, DECISIONS.md wins, flag it. `docs/PHASE_STATE.md` = memory. Append after each phase: built, decisions, open, next phase input. Do NOT re-derive pricing/discount/commission from memory. Read from `PricingConfig` / `DECISIONS.md`.
+CONTEXT RETENTION: `docs/DECISIONS.md` = decisions. Precedence: see top of file. `docs/PHASE_STATE.md` = memory. Append after each phase: built, decisions, open, next phase input. Do NOT re-derive pricing/discount/commission from memory. Read from `PricingConfig` / `DECISIONS.md`.
 
 ---
 
@@ -392,7 +426,7 @@ resolvePromo(code, scope, countryCode):
 - Storage: S3-compatible (R2 / Supabase), private KYC bucket signed URLs, public store media
 - QR: `qrcode` (server SVG/PNG). PDF: `@react-pdf/renderer` or HTML print CSS
 - PWA: `@ducanh2912/next-pwa`. TWA: Asset Links + Bubblewrap
-- Queue/cron: Vercel Cron or Inngest. Rate limit: Upstash Redis. Observability: Sentry. Analytics: Plausible/PostHog
+- Hosting: Netlify (Part 4). Cron: Netlify Scheduled Functions → `/api/cron/*` guarded by `CRON_SECRET`. Rate limit: Upstash Redis. Observability: Sentry. Analytics: Plausible/PostHog
 - Testing: Vitest, Playwright, Prisma test DB
 
 **PostGIS 3-Step Setup (PATCH v3.3-v3.4, mandatory order):**
@@ -417,14 +451,14 @@ resolvePromo(code, scope, countryCode):
 /lib db.ts, auth.ts, policy.ts, pricing.ts, promo.ts, commission.ts, billing/subscription.ts, geo.ts, search.ts, whatsapp.ts, lemonsqueezy.ts, kyc/, otp/, storage.ts, audit.ts, ratelimit.ts, validators/, i18n/
 /prisma schema.prisma, migrations/, seed.ts
 /messages bn.json, en.json
-/docs DECISIONS.md, PHASE_STATE.md, IMPLEMENTATION_NOTES.md
+/docs DECISIONS.md, PHASE_STATE.md
 /tests unit/, e2e/
 ```
 Every file 1-line purpose comment. No dead code. No TODO without issue note.
 
 ---
 
-## 7. DATABASE SCHEMA (PRISMA — Phase-wise, see IMPLEMENTATION_NOTES)
+## 7. DATABASE SCHEMA (PRISMA — Phase-wise, see Part 2)
 
 Enums: `Role, MarketScope(LOCAL|NATIONAL|INTERNATIONAL), PricingScope(LOCAL|NATIONAL|INTERNATIONAL|PARTNER), VerificationStatus(NOT_STARTED|PENDING|IN_REVIEW|VERIFIED|REJECTED), SubStatus(NONE|ACTIVE|PAST_DUE|CANCELLED|EXPIRED), StoreStatus(DRAFT|DRAFT_BY_PARTNER|CLIENT_INVITED|CLIENT_KYC_PENDING|ACTIVE|SUSPENDED), CommissionStatus(PENDING|APPROVED|PAID|REVERSED), PayoutStatus, PromoType(PARTNER|PROMOTER), ListingType(PRODUCT|SERVICE)`.
 
@@ -514,7 +548,7 @@ Each: Zod, auth guard, rate limit, AuditLog where mutates, typed `{ ok:true, dat
 - Actions: `createStore, updateStore, upsertListing, deleteListing, setDeliveryMode, submitKyc, applyPromo, createCheckout, createPartnerStore, inviteClient, bulkRenewStores, createPromoCode, requestPayout, submitReview, reportEntity`
 - `POST /api/webhooks/lemonsqueezy`, `POST /api/kyc/webhook`
 - `GET /api/qr/[slug]`, `GET /api/marketing-kit/[slug]?type=poster|card`
-- Cron: `/api/cron/expire-subscriptions`, `/approve-commissions`, `/renewal-reminders`, `/purge-kyc`, `/retry-webhooks`
+- Cron: `/api/cron/expire-subscriptions`, `/approve-commissions`, `/renewal-reminders`, `/purge-kyc`, `/retry-webhooks` — EVERY cron route requires `Authorization: Bearer $CRON_SECRET`, else 401 (Part 4.4)
 - Admin: approve/reject KYC, suspend, edit Pricing/Country/AppConfig, payout batch, CSV export
 
 ---
@@ -555,7 +589,7 @@ LEGAL BLOCKERS — Do NOT launch without lawyer sign-off:
 
 ## 13. ENV VARS (`.env.example`)
 
-`DATABASE_URL, DIRECT_URL, AUTH_SECRET, AUTH_GOOGLE_ID/SECRET, WHATSAPP_PHONE_ID, WHATSAPP_TOKEN, WHATSAPP_OTP_TEMPLATE, WHATSAPP_OTP_ENABLED, SMS_FALLBACK_KEY, GOOGLE_MAPS_BROWSER_KEY, GOOGLE_MAPS_SERVER_KEY, LEMONSQUEEZY_API_KEY, LEMONSQUEEZY_STORE_ID, LEMONSQUEEZY_WEBHOOK_SECRET, LS_VARIANT_LOCAL/NATIONAL/INTERNATIONAL/PARTNER, KYC_PROVIDER, KYC_API_KEY, KYC_WEBHOOK_SECRET, S3_ENDPOINT/BUCKET_PUBLIC/BUCKET_PRIVATE/KEYS, KYC_ENCRYPTION_KEY, PAYOUT_ENCRYPTION_KEY, UPSTASH_REDIS_URL/TOKEN, SENTRY_DSN, NEXT_PUBLIC_APP_URL, OTP_DEV_BYPASS`.
+`DATABASE_URL, DIRECT_URL, AUTH_SECRET, AUTH_GOOGLE_ID/SECRET, WHATSAPP_PHONE_ID, WHATSAPP_TOKEN, WHATSAPP_OTP_TEMPLATE, WHATSAPP_OTP_ENABLED, SMS_FALLBACK_KEY, GOOGLE_MAPS_BROWSER_KEY, GOOGLE_MAPS_SERVER_KEY, LEMONSQUEEZY_API_KEY, LEMONSQUEEZY_STORE_ID, LEMONSQUEEZY_WEBHOOK_SECRET, LS_VARIANT_LOCAL/NATIONAL/INTERNATIONAL/PARTNER, KYC_PROVIDER, KYC_API_KEY, KYC_WEBHOOK_SECRET, S3_ENDPOINT/BUCKET_PUBLIC/BUCKET_PRIVATE/KEYS, KYC_ENCRYPTION_KEY, PAYOUT_ENCRYPTION_KEY, UPSTASH_REDIS_URL/TOKEN, SENTRY_DSN, NEXT_PUBLIC_APP_URL, CRON_SECRET, OTP_DEV_BYPASS`.
 
 Comment: `OTP_DEV_BYPASS must be false in production, app will refuse to boot if true in production`.
 
@@ -577,10 +611,10 @@ Comment: `OTP_DEV_BYPASS must be false in production, app will refuse to boot if
 ## 15. BUILD PHASES (one at a time, stop + report after each)
 
 **Phase 1 — Foundation + Data Layer (ONE phase, 3 sub-steps):**
-- 1.1 Repo, Next 14.2.5, Tailwind/shadcn, i18n core strings, .env.example, lint/test, CI.
+- 1.1 Repo, Next 14.2.5, Tailwind/shadcn, i18n core strings, .env.example, lint/test, CI, `netlify.toml` + Prisma `binaryTargets` (Part 4).
 - 1.2 Prisma schema (Phase 1 models ONLY: CountryConfig, PricingConfig, AppConfig, User, SavedAddress, OtpCode table-only, AuditLog minimal, WebhookEvent table-only, infra_setup_log) + migrations + PostGIS 3-step (check -> migrate -> ensure-postgis --phase=1) + `lib/geo.ts` + CountryConfig/PricingConfig (4 rows BD) + AppConfig seed incl `medicalListingRequiresApproval=true` + OTP guard.
 - 1.3 Seed (phase-aware: Phase 1 prod seed ONLY Country/Pricing/AppConfig, NO Category, NO Admin default password — Admin via separate provisioning) + home shell reading CountryConfig.
-*Accept:* runs, locale works, DB migrates, seed works, geo distance via both paths, Config readable, OTP_DEV_BYPASS block test passes, Prisma migrations contain NO PostGIS SQL, SavedAddress rules pass.
+*Accept:* runs, `next build` passes, locale works, DB migrates, seed works, geo distance via both paths, Config readable, OTP_DEV_BYPASS block test passes, Prisma migrations contain NO PostGIS SQL, SavedAddress rules pass.
 
 **Phase 2 — Auth:** WhatsApp OTP + email/Google, sessions, policy.ts, onboarding, rate limits. WhatsApp risk checklist 8.5.
 *Accept:* OTP lifecycle, unauthorized blocked, SMS fallback tested.
@@ -591,7 +625,7 @@ Comment: `OTP_DEV_BYPASS must be false in production, app will refuse to boot if
 **Phase 4 — Stores:** CRUD, slug, map pin, listings nameBn/En, categories, media, delivery modes. Single scope. + `ensure-postgis --phase=4` + Category seed (Phase 4 only).
 *Accept:* seller can publish (draft until sub+KYC).
 
-**Phase 5 — Billing:** LS checkout, promo, webhook handler (Sec 4.5, verify LS event names from docs), lifecycle + grace + cron expiry + retry cron. PARTNER row for Partner checkout.
+**Phase 5 — Billing:** LS checkout, promo, webhook handler (Sec 4.5, verify LS event names from docs), lifecycle + grace + cron expiry + retry cron (Netlify Scheduled Functions, Part 4.4). PARTNER row for Partner checkout.
 *Accept:* replayed webhooks harmless, expired hidden, retry + token + downstream idempotency tests pass.
 
 **Phase 6 — Search:** Sec 8.1, home/results/map, store/provider pages, SEO. Scope inclusion.
@@ -606,14 +640,14 @@ Comment: `OTP_DEV_BYPASS must be false in production, app will refuse to boot if
 **Phase 9 — Providers:** profile individual/corporate, matching, hire flow, reviews. Medical requires approval. + `ensure-postgis --phase=9`.
 *Accept:* matching works, hire via WhatsApp, medical hidden until approved.
 
-**Phase 10 — Admin, hardening, PWA/TWA, launch:** reports/moderation, security, Lighthouse, Play Store, backups, monitoring, legal pages, legal blockers Sec 11 signed off.
+**Phase 10 — Admin, hardening, PWA/TWA, launch:** reports/moderation, security, Lighthouse, Play Store, backups, monitoring, Netlify production deploy checklist (Part 4.6), legal pages, legal blockers Sec 11 signed off.
 *Accept:* Legal cleared, Lighthouse met.
 
 ---
 
 ## 16. LOCKED DECISIONS (DO NOT CHANGE WITHOUT ASKING)
 
-1. `APP_DOMAIN = ekota.store`. Intentional spelling. Do NOT autocorrect to ekota.store.
+1. `APP_DOMAIN = ekota.store`. Use exactly this domain everywhere.
 2. Money = integer cents, billing USD, display BDT BD. No floats.
 3. DB = Supabase Postgres + PostGIS. Prisma 5.x. Next.js 14.2.5 pinned.
 4. Promoter = 10% recurring. New seller discount promoter code = 25% (20-30 AppConfig).
@@ -646,19 +680,15 @@ Comment: `OTP_DEV_BYPASS must be false in production, app will refuse to boot if
 - Conventional Commits. One PR-sized change per step.
 - Every file 1-line purpose comment. No dead code, no TODO without issue note.
 
-**START NOW:** Reply only with: (1) 10-line confirmation, (2) questions from Sec 16 blocking Phase 1 (if any), (3) then begin Phase 1.
+**START NOW:** Follow Step 0.5: restate scope in 5 lines, ask any blocking question (ONE at a time), then begin Phase 1.
 
 
 ---
 
 ## 📗 PART 2 — IMPLEMENTATION NOTES (v3 + v3.1 + v3.2 + v3.3 + v3.4 Consolidated)
 
-# IMPLEMENTATION NOTES — ekota.store v5 Companion (FINAL CONSOLIDATED v3.4)
-> Companion to `CLAUDE.md` v5 FINAL CONSOLIDATED. Do NOT treat as new master.
-> This file consolidates: IMPLEMENTATION_NOTES v3 + PATCH v3.1 (6 fixes) + PATCH v3.2 (3 clarifications) + PATCH v3.3 (4 corrections) + PATCH v3.4 (final details).
-> Do NOT keep separate v1/v2/v3 patch files in repo. Keep ONLY this file as `docs/IMPLEMENTATION_NOTES.md`.
-> Precedence: `CLAUDE.md v5 > this file (v3.4 > v3.3 > v3.2 > v3.1 > v3)`. If this file conflicts with CLAUDE.md, CLAUDE.md wins. No new Locked Decisions here. PartnerStoreSetup 3B is PENDING approval, do NOT implement until user approves.
-> Save as `docs/IMPLEMENTATION_NOTES.md`.
+# PART 2 — IMPLEMENTATION NOTES (clarifications only, INSIDE this file)
+> Consolidates v3 + PATCH v3.1 + v3.2 + v3.3 + v3.4. NO new Locked Decisions. Precedence: see top of file. NOT a separate file. PartnerStoreSetup 3B is PENDING approval, do NOT implement until user approves.
 
 ---
 
@@ -756,11 +786,11 @@ Rules: No other module reads PricingConfig for math, must call pricing.ts. Never
 
 ## 8. HOW TO USE
 
-1. Keep `CLAUDE.md` v5 as master. This file is companion.
-2. Phase 1 prompt: "Execute Phase 1 per CLAUDE.md + this file Sec 1,2,4,6 + Phase 1 models only"
-3. Phase 5 prompt: "Execute Phase 5 per CLAUDE.md + this file Sec 2,3 (webhook, grace). Verify LS event names from docs."
-4. Phase 8 prompt: "Execute Phase 8 per CLAUDE.md + this file Sec 3 (payout, PartnerStoreSetup 3B pending approval)."
-5. If conflict, CLAUDE.md wins. Flag it. Do NOT silently override.
+1. This file is the only master. Part 2 = these notes.
+2. Phase 1 prompt: "Execute Phase 1 per CLAUDE.md, Part 2 Sec 1,2,4,6 + Phase 1 models only."
+3. Phase 5 prompt: "Execute Phase 5 per CLAUDE.md, Part 2 Sec 2,3 (webhook, grace) + Part 4.4 (cron). Verify LS event names from docs."
+4. Phase 8 prompt: "Execute Phase 8 per CLAUDE.md, Part 2 Sec 3 (payout; PartnerStoreSetup 3B pending approval)."
+5. If conflict, apply the PRECEDENCE rule at the top. Flag it. Do NOT silently override.
 
 **END — No new Locked Decisions. All patches are clarifications, except 3B proposal pending.**
 
@@ -778,5 +808,66 @@ Rules: No other module reads PricingConfig for math, must call pricing.ts. Never
 5. If context is lost (new session), Step 0.1-0.2 is your recovery: re-read this file, re-read PHASE_STATE, continue from NEXT in PHASE_STATE, do NOT restart from scratch.
 6. PartnerStoreSetup 3B remains PENDING until user explicitly says YES. Do NOT implement it on your own.
 
-**END OF SINGLE FILE — ekota.store MASTER CONTEXT PROMPT v5 FINAL (COMPLETE)**
+## 🚀 PART 4 — NETLIFY DEPLOYMENT (infrastructure only, user-directed; changes NO Locked Decision)
+
+### 4.1 Principles
+- Netlify hosts the Next.js 14.2.5 App Router app through its built-in Next.js runtime (auto-detected). Stack is unchanged (Decision 3 holds).
+- Everything is SERVERLESS: no persistent filesystem, no in-memory state between requests, sync function timeout ~10s (configurable, max ~26s). Therefore:
+  - Rate limiting + caching state → Upstash Redis / Next cache tags, NEVER module-level variables.
+  - Webhook handler stays fast: verify signature → insert → claim → process in one transaction (Sec 4.5). No long work inline.
+  - Generated PDFs/QR are cached by store version hash (Sec 8.3), not regenerated per request.
+- Never run migrations during the Netlify build.
+
+### 4.2 `netlify.toml` (Phase 1.1)
+```toml
+[build]
+  command = "npx prisma generate && next build"
+[build.environment]
+  NODE_VERSION = "20"
+  NEXT_TELEMETRY_DISABLED = "1"
+```
+Do NOT put secrets in `netlify.toml`.
+
+### 4.3 Prisma + Supabase on Netlify (Phase 1.2)
+- `schema.prisma`: `generator client { provider = "prisma-client-js"  binaryTargets = ["native", "rhel-openssl-3.0.x"] }` and `datasource db { provider = "postgresql"  url = env("DATABASE_URL")  directUrl = env("DIRECT_URL") }`.
+- `DATABASE_URL` = Supabase POOLED connection string (add `?pgbouncer=true&connection_limit=1`). `DIRECT_URL` = direct connection, used ONLY by migrations/infra scripts.
+- Production DB order: run `npm run db:setup` (check-postgis → migrate deploy → ensure-postgis --phase=N) from local/CI against the production DB, THEN deploy. Production + PostGIS missing → `POSTGIS_REQUIRED_IN_PRODUCTION` (existing rule).
+- Use SEPARATE Supabase projects for production and Deploy Previews/staging. Previews must NEVER point at the production DB.
+
+### 4.4 Cron = Netlify Scheduled Functions (Phase 5.3)
+Each trigger is `netlify/functions/cron-<name>.mts`:
+```ts
+// Triggers /api/cron/<name> on a schedule (Netlify Scheduled Function)
+import type { Config } from "@netlify/functions";
+export default async () => {
+  const base = process.env.URL ?? process.env.NEXT_PUBLIC_APP_URL;
+  await fetch(`${base}/api/cron/<name>`, { headers: { Authorization: `Bearer ${process.env.CRON_SECRET}` } });
+};
+export const config: Config = { schedule: "<cron expr>" };
+```
+| Route | Schedule (UTC) |
+|---|---|
+| `/api/cron/retry-webhooks` | `*/5 * * * *` |
+| `/api/cron/expire-subscriptions` | `0 * * * *` |
+| `/api/cron/approve-commissions` | `0 2 * * *` |
+| `/api/cron/renewal-reminders` | `0 3 * * *` |
+| `/api/cron/purge-kyc` | `0 4 * * *` |
+
+Rules: scheduled functions run only on the published production deploy; every cron route returns 401 without the bearer token; every cron job is idempotent (safe to run twice); add `@netlify/functions` as a dependency only in Phase 5.
+
+### 4.5 Environment variables
+- Set in Netlify UI per context (Production vs Deploy Previews). `NEXT_PUBLIC_*` values are inlined at BUILD time → trigger a new deploy after changing them.
+- `OTP_DEV_BYPASS=false` in EVERY Netlify context (Netlify builds run with `NODE_ENV=production`, so the Decision 22 guard also protects previews).
+- Lemon Squeezy webhook URL: `https://ekota.store/api/webhooks/lemonsqueezy`. The route must read the RAW body (`await req.text()`) for HMAC verification BEFORE any JSON parse.
+- KYC webhook URL: `https://ekota.store/api/kyc/webhook`, same raw-body rule.
+
+### 4.6 Smoke deploy + production checklist
+- End of Phase 1 (recommended): user connects repo to Netlify → agent confirms `next build` passes and home shell renders on a Deploy Preview with bn/en switching.
+- Phase 1/Phase 6 verification on Netlify: next-intl middleware, ISR + tag revalidation, `sharp` image optimization, Google Maps lazy-load.
+- Phase 7 verification on Netlify: `@react-pdf/renderer` and `qrcode` run inside functions within size/time limits. If they do NOT → STOP, report, and propose an alternative. Do NOT swap libraries silently.
+- Production checklist (Phase 10.3): build passes → env audit (all Section 13 vars, none missing, bypass false) → `db:setup` against production → PostGIS verified → 5 cron functions visible in Netlify UI → LS test webhook accepted (bad signature → 401) → domain `ekota.store` HTTPS live → `/.well-known/assetlinks.json` reachable → Lighthouse targets met.
+
+---
+
+**END OF SINGLE FILE — ekota.store MASTER CONTEXT PROMPT v5 FINAL (COMPLETE + NETLIFY)**
 > Save this file as CLAUDE.md first. Then execute Phase 1. Then Phase 2... Phase 10. One phase at a time. Self-test every time. Never lose context.
