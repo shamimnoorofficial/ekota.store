@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1000" viewBox="0 0 1000 1000">
+  <!-- ekota.store Logo Option 3 FINAL v2 - Transparent -->
+  <!-- Continuous circle R=340 center 500,500 stroke=60, 3 arcs no gaps -->
+  <!-- Dots r=58 ON circle: Top #00E5FF, BR #FFB81C, BL #7ED957 -->
+  <!-- e #0077B6 exactly centered 500,500 -->
+  <circle cx="500" cy="500" r="340" fill="none" stroke="#00E5FF" stroke-width="60"/>
+  <path d="M 794.5 670 A 340 340 0 0 1 205.5 670" fill="none" stroke="#FFB81C" stroke-width="60"/>
+  <path d="M 205.5 670 A 340 340 0 0 1 500 160" fill="none" stroke="#7ED957" stroke-width="60"/>
+  <circle cx="500" cy="160" r="58" fill="#00E5FF" stroke="white" stroke-width="5"/>
+  <circle cx="794.5" cy="670" r="58" fill="#FFB81C" stroke="white" stroke-width="5"/>
+  <circle cx="205.5" cy="670" r="58" fill="#7ED957" stroke="white" stroke-width="5"/>
+  <text x="500" y="500" text-anchor="middle" dominant-baseline="central" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="360" fill="#0077B6">e</text>
+</svg>
